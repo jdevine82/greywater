@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"name": "greywater",
+			"path": ".."
+		},
+		{
+			"name": "wifi test",
+			"path": "../../../../../Documents/PlatformIO/Projects/wifi test"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}
