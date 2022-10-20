@@ -71,7 +71,7 @@ static uint8_t Auto=2;
  float DecantStopLevel;
  float effluentStopLevel;
 unsigned long decantIdleTime,decantStopTime,decantStartTime,cycle1Timer,cycle2Timer,cycle3Timer,cycle4Timer,influentPumpTimer,WasTimer,WasTimePeriod;
-unsigned long timer;
+unsigned long timer,lastReconnectAttempt;
 ArduinoNvs nvss;
 
   String host = WiFiSettings.string("MQTT Server", "10.0.0.215");
@@ -402,21 +402,7 @@ void callback(char* topic, byte *payload, unsigned int length){
 }
 
 
-int connect_mqtt_server()
-{
-  while (!mqttClient.connected() ){
-    printf("Attempting MQTT connection...");
 
-    String clientId = "Greywater-";
-    clientId += String(random(0xFFFF), HEX);
-
-    if (mqttClient.connect(clientId.c_str())) {
-      printf("Connected!\n");
-      return 0;
-    }
-  }
-  return 1;
-}
 
 void setup() {
   // put your setup code here, to run once:
@@ -465,8 +451,8 @@ void setup() {
   // If no credentials are stored or if the access point is out of reach,
   // an access point will be started with a captive portal to configure WiFi.
 
-  wirelessConnect();
-
+   WiFiSettings.connect(true, 30);
+ lastReconnectAttempt = 0;
   outstate.Blower=Auto;
   outstate.Decant=Auto;
   outstate.InfluentPump=Auto;
@@ -478,22 +464,11 @@ void setup() {
  
 }
 
-void wirelessConnect(){
- 
-  WiFiSettings.connect(true, 30);
- // WiFiSettings.portal();
-  printf("Wifi Connect done %lu\n", millis());
- // printf("MQTT Host:%s:%d\n", host.c_str(), port);
- Serial.println("starting");
-  Serial.println("cant get wifi");
-  mqttClient.setServer(host.c_str(), port);
-  mqttClient.setCallback(callback);
-  int result = connect_mqtt_server();
 
- if (0==0){
- 
-  
-  mqttClient.subscribe("greywater/Decant/idleTime");
+boolean reconnect() {
+  if (mqttClient.connect("arduinoClient")) {
+
+    mqttClient.subscribe("greywater/Decant/idleTime");
   mqttClient.subscribe("greywater/Decant/startTime");
   mqttClient.subscribe("greywater/Decant/stopTime");
   mqttClient.subscribe("greywater/CycleTimes/cycle1Timer");
@@ -527,6 +502,31 @@ void wirelessConnect(){
     mqttClient.subscribe("greywater/reactor/settleStopLevel");
     mqttClient.subscribe("greywater/effluent/stopLevel");
     mqttClient.subscribe("greywater/reset");
+
+  }
+  return mqttClient.connected();
+}
+
+void wirelessConnect(){
+ 
+  
+mqttClient.setServer(host.c_str(), port);
+  mqttClient.setCallback(callback);
+  if (!mqttClient.connected()) {
+    long now = millis();
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      // Attempt to reconnect
+      if (reconnect()) {
+        lastReconnectAttempt = 0;
+      }
+    }
+
+ }else {
+
+ mqttClient.loop();
+  
+
 }
 }
 
@@ -559,16 +559,7 @@ void InfluentPump(){
 
 }
 void loop() {
-
-
-if (WL_DISCONNECTED==WiFi.status()) {
 wirelessConnect();//
-}
-  // put your main code here, to run repeatedly:
-printInputs();
-mqttClient.loop();
-
-//Logic Section
 
 //Lets check for high level alarm on influent
 if (digitalRead(InfluentOverflow)==0) {
@@ -926,6 +917,9 @@ if (outstate.Was==Auto) digitalWrite(WasSolenoid,outbuffer.Was); else if (outsta
 
 
 }// end loop
+
+
+
 void printInputs() {
   Serial.println(ReactorLevel.level);
 }
