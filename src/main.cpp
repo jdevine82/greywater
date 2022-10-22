@@ -801,7 +801,7 @@ else if ((outstate.InfluentPump==off) || (outbuffer.InfluentPump==0)){
                                                                       influentState=0;//reset pump startingstate;
                                                                       } 
 
-    else if (outstate.InfluentPump==on) digitalWrite(InfluentPumpOutput,on);
+    else if (outstate.InfluentPump==1) digitalWrite(InfluentPumpOutput,1);
 if (outstate.PressurePump==Auto) digitalWrite(PressurePumpOutput,outbuffer.PressurePump);else if (outstate.PressurePump==off) digitalWrite(PressurePumpOutput,off); else if (outstate.PressurePump==on) digitalWrite(PressurePumpOutput,on);
 if (outstate.Spare2==Auto) digitalWrite(Spare2Output,outbuffer.Spare2); else if (outstate.Spare2==off) digitalWrite(Spare2Output,off); else if (outstate.Spare2==on) digitalWrite(Spare2Output,on);
 
