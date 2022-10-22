@@ -72,14 +72,17 @@ static uint8_t Auto=2;
  float DecantStopLevel;
  float effluentStopLevel;
 unsigned long decantIdleTime,decantStopTime,decantStartTime,cycle1Timer,cycle2Timer,cycle3Timer,cycle4Timer,influentPumpTimer,WasTimer,WasTimePeriod;
-unsigned long timer,lastReconnectAttempt;
+unsigned long timer,lastReconnectAttempt,influentEqTimer;
 ArduinoNvs nvss;
-
+#define influentEqDelay 20*60*1000   //delay time of influent pump in equalistoin mode.
+#define influentEqRunTime 30*1000   //run time of influent pump in eq mode.
+#define influentPitEmergencyPumpAmount 200.0  //amount from the top of the influent pit to pump out in emergency mode
   String host = WiFiSettings.string("MQTT Server", "10.0.0.215");
   int    port = WiFiSettings.integer("MQTT Port", 0, 65535, 1883);
+  boolean highLevelInfluentPump;
  
  int output,influentState,y;
-
+void influentEq();
 void printInputs();
 void wirelessConnect();
 stateMachine MachineCycle;
@@ -617,12 +620,13 @@ if (digitalRead(InfluentOverflow)==0) {
   if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
 };
 
+/*
 //Lets check for high level alam on tank
 if (digitalRead(ReactorOverflow)==1) {
   if (MachineCycle.cycle==1) MachineCycle.cycle=4; //put straight into settle mode if in aeration mode.
   if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
 };
-
+*/
 //Lets check level tx of reactor
   
         long  raw = ReactorLevel.read();
@@ -646,11 +650,17 @@ if (digitalRead(ReactorOverflow)==1) {
           InfluentLevel.level=(float)(raw);
           InfluentLevel.level=  InfluentLevel.level*InfluentLevel.span;
           InfluentLevel.level=InfluentLevel.level+InfluentLevel.offset;
-        if (InfluentLevel.level>InfluentPitStartLevel) {
-          if (MachineCycle.cycle==1) outbuffer.InfluentPump=1;
-          if (MachineCycle.cycle==2) outbuffer.InfluentPump=1;
-          if (MachineCycle.cycle==3) outbuffer.InfluentPump=1;
+
+//this part just runs if we are maxing out the pit
+        if (InfluentLevel.level>InfluentPitStartLevel) {  //used if pit becomes too full
+          if ((MachineCycle.cycle>=1) && (MachineCycle.cycle<4)) outbuffer.InfluentPump=1;
+            highLevelInfluentPump=true; //a flag so we know we are pumping down the pit a little
         };
+
+        if ((highLevelInfluentPump)  && (InfluentLevel.level<(InfluentPitStartLevel-influentPitEmergencyPumpAmount))) {
+                                                                                                                      outbuffer.InfluentPump=0;
+                                                                                                                      highLevelInfluentPump=false;
+                                                                                                                      } ;   
         if (InfluentLevel.level<InfluentPitStopLevel) {
           outbuffer.InfluentPump=0;
         };
@@ -677,10 +687,7 @@ if (digitalRead(ReactorOverflow)==1) {
            EqualisationTankLevel.level=  EqualisationTankLevel.level*EqualisationTankLevel.span;
            EqualisationTankLevel.level=EqualisationTankLevel.level+EqualisationTankLevel.offset;
        
-//now a special logic for anoix period
-if (MachineCycle.cycle==2){
-  if ((InfluentLevel.level>InfluentPitStopLevel) && (millis()>(MachineCycle.timer-cycle2Timer+10*60*1000))) outbuffer.InfluentPump=1; //see if we are more than 10min into anoxic period if so add some food if possible.
-}
+
 //set ouputs according to current state machine
 
 //are we in decant 
@@ -731,6 +738,8 @@ if (MachineCycle.cycle==1){
         outbuffer.Blower=1;
         if (millis()<WasTimer){ outbuffer.Was=1;} else {outbuffer.Was=0;}
         //outbuffer.Was=1;
+        influentEq();
+
         if (millis()>MachineCycle.timer){
           MachineCycle.timer=millis()+cycle2Timer;
           MachineCycle.cycle++;
@@ -743,6 +752,7 @@ if (MachineCycle.cycle==1){
 if (MachineCycle.cycle==2){
        outbuffer.Mixer=1;
         outbuffer.Blower=0;
+        influentEq();
         if (millis()>MachineCycle.timer){
           MachineCycle.timer=millis()+cycle3Timer;
           MachineCycle.cycle=1; //will go back to aerobic cycle now. we rely on level tx to get to next machine state.
@@ -785,10 +795,11 @@ if (MachineCycle.cycle>4)MachineCycle.cycle=1; //catch put back into aeration mo
 
 
 if (outstate.Blower==Auto)  digitalWrite(BlowerOutput,outbuffer.Blower); else if (outstate.Blower==off) digitalWrite(BlowerOutput,off); else if (outstate.Blower==on) digitalWrite(BlowerOutput,on);
-if ((outstate.InfluentPump==Auto) && (outbuffer.InfluentPump==1)) InfluentPump(); else if ((outstate.InfluentPump==off) || (outbuffer.InfluentPump==0)){ 
-                                                                                                                    digitalWrite(InfluentPumpOutput,off);
-                                                                                                                    influentState=0;//reset pump startingstate;
-                                                                                                                    } 
+if ((outstate.InfluentPump==Auto) && (outbuffer.InfluentPump==1)) InfluentPump(); 
+else if ((outstate.InfluentPump==off) || (outbuffer.InfluentPump==0)){ 
+                                                                      digitalWrite(InfluentPumpOutput,off);
+                                                                      influentState=0;//reset pump startingstate;
+                                                                      } 
 
     else if (outstate.InfluentPump==on) digitalWrite(InfluentPumpOutput,on);
 if (outstate.PressurePump==Auto) digitalWrite(PressurePumpOutput,outbuffer.PressurePump);else if (outstate.PressurePump==off) digitalWrite(PressurePumpOutput,off); else if (outstate.PressurePump==on) digitalWrite(PressurePumpOutput,on);
@@ -971,5 +982,16 @@ if (outstate.Was==Auto) digitalWrite(WasSolenoid,outbuffer.Was); else if (outsta
 
 
 void printInputs() {
-  Serial.println(ReactorLevel.level);
+  Serial.println(digitalRead(ReactorOverflow));
+}
+
+
+void influentEq(){
+        if ((millis()>influentEqTimer) && (InfluentLevel.level>InfluentPitStopLevel)) {
+          outbuffer.InfluentPump=1;
+          }
+        if (millis()>(influentEqTimer+influentEqRunTime)) { 
+          outbuffer.InfluentPump=0;
+           influentEqTimer=millis()+influentEqDelay;
+           }
 }
