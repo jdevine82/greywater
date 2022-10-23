@@ -472,7 +472,7 @@ void setup() {
 
 reactorAvg.begin();
 
-for (int i=0;10;i++) readReactorLevel();
+for (int i=0;i<10;i++) readReactorLevel();
      // Port defaults to 3232
   // ArduinoOTA.setPort(3232);
 
@@ -627,16 +627,20 @@ if (digitalRead(InfluentOverflow)==0) {
 //Lets check for high level alam on tank
 if (digitalRead(ReactorOverflow)==1) {
   if (MachineCycle.cycle==1) MachineCycle.cycle=4; //put straight into settle mode if in aeration mode.
-  if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
+  if (MachineCycle.cycle==2) {MachineCycle.cycle=3; //put back into short aeration mode and then settle.
+                                        MachineCycle.timer=millis()+cycle3Timer;
+          }
 };
 readReactorLevel();
 
-/*
+
         if (ReactorLevel.level>settleStartLevel) {                    // see if reactor vessel level is high enough to start settle/decant op.
           if (MachineCycle.cycle==1) MachineCycle.cycle=4; //put straight into settle mode if in aeration mode.
-          if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
+          if (MachineCycle.cycle==2) {MachineCycle.cycle=3; //put back into short aeration mode and then settle.
+                                        MachineCycle.timer=millis()+cycle3Timer;
+          }
         };
-*/
+
 
 //Lets check level tx of influent
            long raw = InfluentLevel.read();
@@ -749,7 +753,7 @@ if (MachineCycle.cycle==2){
         outbuffer.Blower=0;
         influentEq();
         if (millis()>MachineCycle.timer){
-          MachineCycle.timer=millis()+cycle3Timer;
+          MachineCycle.timer=millis()+cycle1Timer;
           MachineCycle.cycle=1; //will go back to aerobic cycle now. we rely on level tx to get to next machine state.
           WasTimer=millis()+WasTimePeriod;
         };
