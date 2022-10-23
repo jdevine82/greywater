@@ -47,9 +47,9 @@ static uint8_t EqualiserTankOverflow =33;
 static uint8_t InfluentPumpOutput =25;
 static uint8_t FlowEqualiserLevelTx =26;
 static uint8_t SpareInput2 =27;
-static uint8_t WasSolenoid =14;
+static uint8_t WasSolenoid =13; //this is swapped with what is on pcb to allow 12v connection of air solenoid
 static uint8_t DecantSolenoid =12;
-static uint8_t BlowerOutput =13;
+static uint8_t BlowerOutput =14; // this is swappted with WAS solenoid for 12v air connection
 static uint8_t EffluentLevelTx =23;
 static uint8_t sclIIC =22;
 static uint8_t Spare2Output = 1;// this one has cut track
@@ -620,13 +620,12 @@ if (digitalRead(InfluentOverflow)==0) {
   if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
 };
 
-/*
+
 //Lets check for high level alam on tank
 if (digitalRead(ReactorOverflow)==1) {
   if (MachineCycle.cycle==1) MachineCycle.cycle=4; //put straight into settle mode if in aeration mode.
   if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
 };
-*/
 //Lets check level tx of reactor
   
         long  raw = ReactorLevel.read();
@@ -636,12 +635,12 @@ if (digitalRead(ReactorOverflow)==1) {
           ReactorLevel.level= ReactorLevel.level*ReactorLevel.span;
           ReactorLevel.level=ReactorLevel.level+ReactorLevel.offset;
 
-
+/*
         if (ReactorLevel.level>settleStartLevel) {                    // see if reactor vessel level is high enough to start settle/decant op.
           if (MachineCycle.cycle==1) MachineCycle.cycle=4; //put straight into settle mode if in aeration mode.
           if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
         };
-
+*/
 
 //Lets check level tx of influent
            raw = InfluentLevel.read();
@@ -657,7 +656,7 @@ if (digitalRead(ReactorOverflow)==1) {
             highLevelInfluentPump=true; //a flag so we know we are pumping down the pit a little
         };
 
-        if ((highLevelInfluentPump)  && (InfluentLevel.level<(InfluentPitStartLevel-influentPitEmergencyPumpAmount))) {
+        if ((highLevelInfluentPump==true)  && (InfluentLevel.level<(InfluentPitStartLevel-influentPitEmergencyPumpAmount))) {
                                                                                                                       outbuffer.InfluentPump=0;
                                                                                                                       highLevelInfluentPump=false;
                                                                                                                       } ;   

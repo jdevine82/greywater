@@ -6,8 +6,8 @@
 
 class stateMachine {
     public:
-  uint8_t cycle; //state of sbr. 0=decant, 1=aeration, 2= anoix, 3=aeration, 4=settle
-  unsigned long timer; //length of time in current cycle
+  volatile uint8_t cycle; //state of sbr. 0=decant, 1=aeration, 2= anoix, 3=aeration, 4=settle
+  volatile unsigned long timer; //length of time in current cycle
   };
 
   class decanta {
