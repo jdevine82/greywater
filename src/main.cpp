@@ -1004,6 +1004,5 @@ void readReactorLevel(){
           float f=(float) raw;
           f= f*ReactorLevel.span;
           f=f+ReactorLevel.offset;
-          ReactorLevel.level=reactorAvg.reading(f);
-
+          if ((f<1000.0) && (f>650.0)) ReactorLevel.level=reactorAvg.reading(f);
 }
