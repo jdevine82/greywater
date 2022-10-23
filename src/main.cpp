@@ -1015,7 +1015,7 @@ void readInfluentLevel(){
           float f=(float) raw;
           f= f*InfluentLevel.span;
           f=f+InfluentLevel.offset;
-          if ((f<1000.0) && (f>650.0)) InfluentLevel.level=influentAvg.reading(f);
+          if ((f<1000.0) && (f>0.0)) InfluentLevel.level=influentAvg.reading(f);
 }
 
 void readEqualisationLevel(){
@@ -1026,7 +1026,7 @@ void readEqualisationLevel(){
           float f=(float)(raw);
            f=  f*EqualisationTankLevel.span;
            f=f+EqualisationTankLevel.offset;
-          if ((f<1000.0) && (f>650.0)) EqualisationTankLevel.level=equalisationAvg.reading(f);
+          if ((f<1000.0) && (f>0.0)) EqualisationTankLevel.level=equalisationAvg.reading(f);
 }
 
 
@@ -1036,6 +1036,6 @@ void readEffluentLevel(){
           raw=raw-EffluentLevel.zero;
            float f=(float) raw;
            f = f*EffluentLevel.span;
-           EffluentLevel.level=f+EffluentLevel.offset;
+           f=f+EffluentLevel.offset;
              if ((f<1000.0) && (f>0.0)) EffluentLevel.level=effluentAvg.reading(f);
 }
