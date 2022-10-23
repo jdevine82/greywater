@@ -9,6 +9,7 @@
 #include <PubSubClient.h>
 #include "ArduinoNvs.h"
 #include <ArduinoOTA.h>
+#include <movingAvgFloat.h>
 
 
 /*Hardware Pinouts:
@@ -85,6 +86,7 @@ ArduinoNvs nvss;
 void influentEq();
 void printInputs();
 void wirelessConnect();
+void readReactorLevel();
 stateMachine MachineCycle;
   decanta Decanter;
  Q2HX711 ReactorLevel(ReactorLeveltx,ReactorLevelSck); 
@@ -116,7 +118,7 @@ struct {
     uint8_t Was;
 }outstate;  //used for auto manual. 0 is off, 1 is on 2 is auto.
 void influentPump();
-
+movingAvgFloat reactorAvg(10);    // use 10 data points for the moving average
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -468,8 +470,9 @@ void setup() {
   outstate.Was=Auto;
  
 
+reactorAvg.begin();
 
-
+for (int i=0;10;i++) readReactorLevel();
      // Port defaults to 3232
   // ArduinoOTA.setPort(3232);
 
@@ -626,14 +629,7 @@ if (digitalRead(ReactorOverflow)==1) {
   if (MachineCycle.cycle==1) MachineCycle.cycle=4; //put straight into settle mode if in aeration mode.
   if (MachineCycle.cycle==2) MachineCycle.cycle=3; //put back into short aeration mode and then settle.
 };
-//Lets check level tx of reactor
-  
-        long  raw = ReactorLevel.read();
-        ReactorLevel.raw=raw; //save for calibration
-        raw=raw-ReactorLevel.zero;
-          ReactorLevel.level=(float) raw;
-          ReactorLevel.level= ReactorLevel.level*ReactorLevel.span;
-          ReactorLevel.level=ReactorLevel.level+ReactorLevel.offset;
+readReactorLevel();
 
 /*
         if (ReactorLevel.level>settleStartLevel) {                    // see if reactor vessel level is high enough to start settle/decant op.
@@ -643,7 +639,7 @@ if (digitalRead(ReactorOverflow)==1) {
 */
 
 //Lets check level tx of influent
-           raw = InfluentLevel.read();
+           long raw = InfluentLevel.read();
            InfluentLevel.raw=raw;
            raw=raw-InfluentLevel.zero;
           InfluentLevel.level=(float)(raw);
@@ -993,4 +989,17 @@ void influentEq(){
           outbuffer.InfluentPump=0;
            influentEqTimer=millis()+influentEqDelay;
            }
+}
+
+void readReactorLevel(){
+  //Lets check level tx of reactor
+  
+        long  raw = ReactorLevel.read();
+        ReactorLevel.raw=raw; //save for calibration
+        raw=raw-ReactorLevel.zero;
+          float f=(float) raw;
+          f= f*ReactorLevel.span;
+          f=f+ReactorLevel.offset;
+          ReactorLevel.level=reactorAvg.reading(f);
+
 }

@@ -21,6 +21,7 @@ class Q2HX711
    float span;
    float offset;
    long raw;
+
 };
 
 #endif /* Q2HX711_h */
