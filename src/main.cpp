@@ -87,6 +87,9 @@ void influentEq();
 void printInputs();
 void wirelessConnect();
 void readReactorLevel();
+void readEqualisationLevel();
+void readInfluentLevel();
+void readEffluentLevel();
 stateMachine MachineCycle;
   decanta Decanter;
  Q2HX711 ReactorLevel(ReactorLeveltx,ReactorLevelSck); 
@@ -119,6 +122,9 @@ struct {
 }outstate;  //used for auto manual. 0 is off, 1 is on 2 is auto.
 void influentPump();
 movingAvgFloat reactorAvg(10);    // use 10 data points for the moving average
+movingAvgFloat influentAvg(10);
+movingAvgFloat equalisationAvg(10);
+movingAvgFloat effluentAvg(10);
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -471,8 +477,14 @@ void setup() {
  
 
 reactorAvg.begin();
+influentAvg.begin();
+equalisationAvg.begin();
+effluentAvg.begin();
 
 for (int i=0;i<10;i++) readReactorLevel();
+for (int i=0;i<10;i++) readInfluentLevel();
+for (int i=0;i<10;i++) readEqualisationLevel();
+for (int i=0;i<10;i++) readEffluentLevel();
      // Port defaults to 3232
   // ArduinoOTA.setPort(3232);
 
@@ -643,12 +655,8 @@ readReactorLevel();
 
 
 //Lets check level tx of influent
-           long raw = InfluentLevel.read();
-           InfluentLevel.raw=raw;
-           raw=raw-InfluentLevel.zero;
-          InfluentLevel.level=(float)(raw);
-          InfluentLevel.level=  InfluentLevel.level*InfluentLevel.span;
-          InfluentLevel.level=InfluentLevel.level+InfluentLevel.offset;
+    readInfluentLevel();
+           
 
 //this part just runs if we are maxing out the pit
         if (InfluentLevel.level>InfluentPitStartLevel) {  //used if pit becomes too full
@@ -667,24 +675,15 @@ readReactorLevel();
 
 
   //Lets check level tx of effluent
-      
-           raw = EffluentLevel.read();
-           EffluentLevel.raw=raw;
-          raw=raw-EffluentLevel.zero;
-          EffluentLevel.level=(float)(raw);
-           EffluentLevel.level=  EffluentLevel.level*EffluentLevel.span;
-           EffluentLevel.level=EffluentLevel.level+EffluentLevel.offset;
+      readEffluentLevel();
+           
           if (EffluentLevel.level>(effluentStopLevel+10.0)) outbuffer.PressurePump=1; else if (EffluentLevel.level<effluentStopLevel) outbuffer.PressurePump=0; 
       
        
 
  //Lets check level tx of flow equlasiation Tanks
-             raw = EqualisationTankLevel.read();
-             EqualisationTankLevel.raw=raw;
-             raw=raw-EqualisationTankLevel.zero;
-          EqualisationTankLevel.level=(float)(raw);
-           EqualisationTankLevel.level=  EqualisationTankLevel.level*EqualisationTankLevel.span;
-           EqualisationTankLevel.level=EqualisationTankLevel.level+EqualisationTankLevel.offset;
+ readEqualisationLevel();
+            
        
 
 //set ouputs according to current state machine
@@ -1005,4 +1004,38 @@ void readReactorLevel(){
           f= f*ReactorLevel.span;
           f=f+ReactorLevel.offset;
           if ((f<1000.0) && (f>650.0)) ReactorLevel.level=reactorAvg.reading(f);
+}
+
+void readInfluentLevel(){
+  //Lets check level tx of reactor
+  
+        long  raw = InfluentLevel.read();
+        InfluentLevel.raw=raw; //save for calibration
+        raw=raw-InfluentLevel.zero;
+          float f=(float) raw;
+          f= f*InfluentLevel.span;
+          f=f+InfluentLevel.offset;
+          if ((f<1000.0) && (f>650.0)) InfluentLevel.level=influentAvg.reading(f);
+}
+
+void readEqualisationLevel(){
+  //Lets check level tx of reactor
+   long raw = EqualisationTankLevel.read();
+             EqualisationTankLevel.raw=raw;
+             raw=raw-EqualisationTankLevel.zero;
+          float f=(float)(raw);
+           f=  f*EqualisationTankLevel.span;
+           f=f+EqualisationTankLevel.offset;
+          if ((f<1000.0) && (f>650.0)) EqualisationTankLevel.level=equalisationAvg.reading(f);
+}
+
+
+void readEffluentLevel(){
+  long raw = EffluentLevel.read();
+           EffluentLevel.raw=raw;
+          raw=raw-EffluentLevel.zero;
+           float f=(float) raw;
+           f = f*EffluentLevel.span;
+           EffluentLevel.level=f+EffluentLevel.offset;
+             if ((f<1000.0) && (f>0.0)) EffluentLevel.level=effluentAvg.reading(f);
 }
